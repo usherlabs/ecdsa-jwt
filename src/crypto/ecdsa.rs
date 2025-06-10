@@ -67,3 +67,62 @@ pub fn verify_signature_b64(
 
     verify_signature(public_key_pem, &challenge_bytes, &signature_bytes)
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    // This is a valid DER structure but not a real signature
+    const VALID_DER_SIGNATURE: &[u8] = &[
+        0x30, 0x44, 0x02, 0x20, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
+        0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x02, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+        0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40,
+    ];
+
+    #[test]
+    fn test_invalid_signature_format() {
+        let key = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----";
+        let challenge = b"test challenge";
+        let invalid_signature = &[0xFF, 0xFF]; // Invalid DER
+
+        let result = verify_signature(key, challenge, invalid_signature);
+        assert!(matches!(result, Err(AuthError::CryptoError(_))));
+    }
+
+    #[test]
+    fn test_invalid_public_key() {
+        let invalid_key = "not a valid PEM key";
+        let challenge = b"test challenge";
+
+        let result = verify_signature(invalid_key, challenge, VALID_DER_SIGNATURE);
+        assert!(matches!(result, Err(AuthError::InvalidPublicKey(_))));
+    }
+
+    // Tests for verify_signature_b64 function
+    #[test]
+    fn test_b64_invalid_challenge_base64() {
+        let public_key_pem = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----";
+        let invalid_challenge_b64 = "not-valid-base64";
+        let signature_b64 = BASE64_STANDARD.encode(VALID_DER_SIGNATURE);
+
+        let result = verify_signature_b64(public_key_pem, invalid_challenge_b64, &signature_b64);
+        assert!(matches!(result, Err(AuthError::Base64Error(_))));
+    }
+
+    #[test]
+    fn test_b64_invalid_signature_base64() {
+        let public_key_pem = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----";
+        let challenge_b64 = BASE64_STANDARD.encode(b"test challenge");
+        let invalid_signature_b64 = "not-valid-base64";
+
+        let result = verify_signature_b64(public_key_pem, &challenge_b64, invalid_signature_b64);
+        assert!(matches!(result, Err(AuthError::Base64Error(_))));
+
+        // Verify the error message mentions signature
+        if let Err(AuthError::Base64Error(msg)) = result {
+            assert!(msg.contains("signature"));
+        }
+    }
+}

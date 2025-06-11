@@ -97,7 +97,11 @@ pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims, AuthErr
         jsonwebtoken::errors::ErrorKind::InvalidToken => AuthError::InvalidToken,
         _ => AuthError::JwtError(format!("JWT validation failed: {}", e)),
     })?;
-    Ok(token_data.claims)
+    let claims = token_data.claims;
+    if claims.exp <= Utc::now().timestamp() {
+        return Err(AuthError::ExpiredToken);
+    }
+    Ok(claims)
 }
 
 fn decode_secret(secret: &str) -> Result<Vec<u8>, AuthError> {
@@ -154,9 +158,7 @@ mod tests {
         }; // Already expired
 
         let token = create_jwt(session_id, &config).unwrap();
-        let result = validate_token(&token, &config).unwrap();
-        // This should fail
-        println!("{:?}", result);
-        //assert!(matches!(result, Err(AuthError::ExpiredToken)));
+        let result = validate_token(&token, &config);
+        assert!(matches!(result, Err(AuthError::ExpiredToken)));
     }
 }

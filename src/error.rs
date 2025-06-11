@@ -11,7 +11,10 @@ pub enum AuthError {
     /// JWT token is invalid, malformed, or has wrong signature
     InvalidToken,
 
-    /// Challenge or token has expired
+    /// Token has expired
+    ExpiredToken,
+
+    /// Challenge has expired
     ExpiredChallenge,
 
     /// Challenge format is invalid
@@ -39,8 +42,11 @@ impl fmt::Display for AuthError {
             AuthError::InvalidToken => {
                 write!(f, "Invalid or malformed JWT token")
             }
+            AuthError::ExpiredToken => {
+                write!(f, "Token has expired")
+            }
             AuthError::ExpiredChallenge => {
-                write!(f, "Challenge or token has expired")
+                write!(f, "Challenge has expired")
             }
             AuthError::InvalidChallenge => {
                 write!(f, "Invalid challenge format")

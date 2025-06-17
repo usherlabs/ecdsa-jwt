@@ -1,7 +1,15 @@
 [package]
 name = "ecdsa-jwt"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "ECDSA challenge-based authentication with JWT session management"
+authors = ["Usher Labs <labs@usher.so>"]
+readme = "README.md"
+keywords = ["ecdsa", "jwt", "authentication", "crypto", "challenge"]
+categories = ["cryptography", "authentication"]
+license = "ISC" 
+repository = "https://github.com/usherlabs/ecdsa-jwt"
+homepage = "https://github.com/usherlabs/ecdsa-jwt"
 
 [dependencies]
 base64 = "0.22"

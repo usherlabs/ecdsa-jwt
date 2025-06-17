@@ -3,7 +3,7 @@ use crate::{
     crypto::{
         challenge::generate_challenge,
         ecdsa::verify_signature,
-        jwt::{Claims, create_jwt, validate_token},
+        jwt::{create_jwt, validate_token, Claims},
     },
     error::{AuthError, Result},
 };
@@ -33,9 +33,9 @@ pub struct AuthService {
 /// - The client's public key (used to verify the signature)
 #[derive(Serialize, Deserialize)]
 pub struct AuthRequest {
-    challenge: String,
-    signature: String,
-    public_key_pem: String,
+    pub challenge: String,
+    pub signature: String,
+    pub public_key_pem: String,
 }
 
 /// Response structure containing authentication results
@@ -46,9 +46,9 @@ pub struct AuthRequest {
 /// - Token expiration timestamp
 #[derive(Serialize, Deserialize)]
 pub struct AuthResponse {
-    session_id: Uuid,
-    session_token: String,
-    expires_at: i64,
+    pub session_id: Uuid,
+    pub session_token: String,
+    pub expires_at: i64,
 }
 
 impl AuthService {
@@ -59,11 +59,11 @@ impl AuthService {
     ///
     /// # Example
     /// ```rust
-    /// use ecdsa_jwt::{AuthService, JwtConfig};
+    /// use ecdsa_jwt::{auth::{AuthService},config::JwtConfig};
     /// use secrecy::Secret;
     /// use base64::prelude::*;
     ///
-    /// let config = JwtConfig {
+    /// let config = JwtConfig {  
     ///     secret: Secret::new(BASE64_STANDARD.encode("your-secret")),
     ///     ttl: 3600, // 1 hour
     /// };
@@ -87,6 +87,15 @@ impl AuthService {
     ///
     /// # Example
     /// ```rust
+    /// use ecdsa_jwt::{auth::{AuthService},config::JwtConfig};
+    /// use secrecy::Secret;
+    /// use base64::prelude::*;
+    ///
+    /// let config = JwtConfig {  
+    ///     secret: Secret::new(BASE64_STANDARD.encode("your-secret")),
+    ///     ttl: 3600, // 1 hour
+    /// };
+    /// let auth_service = AuthService::new(config);
     /// let challenge = auth_service.generate_challenge();
     /// // Store this challenge with a session ID and expiration time
     /// // Send challenge to client for signing
@@ -119,12 +128,21 @@ impl AuthService {
     ///
     /// # Example
     /// ```rust
-    /// let auth_request = AuthRequest {
-    ///     challenge: stored_challenge,
-    ///     signature: client_signature,
-    ///     public_key_pem: client_public_key,
+    /// use ecdsa_jwt::{auth::{AuthService, AuthRequest},config::JwtConfig};
+    /// use secrecy::Secret;
+    /// use base64::prelude::*;
+    ///
+    /// let config = JwtConfig {  
+    ///     secret: Secret::new(BASE64_STANDARD.encode("your-secret")),
+    ///     ttl: 3600, // 1 hour
     /// };
     ///
+    /// let auth_request = AuthRequest {
+    ///     challenge: "stored_challenge".to_string(),
+    ///     signature: "client_signature".to_string(),
+    ///     public_key_pem: "client_public_key".to_string(),
+    /// };
+    /// let auth_service = AuthService::new(config);
     /// match auth_service.authenticate(auth_request) {
     ///     Ok(response) => {
     ///         println!("Authentication successful!");
@@ -132,7 +150,7 @@ impl AuthService {
     ///     }
     ///     Err(e) => println!("Authentication failed: {}", e),
     /// }
-    /// `
+    /// ```
     pub fn authenticate(&self, auth_request: AuthRequest) -> Result<AuthResponse> {
         if auth_request.public_key_pem.trim().is_empty() {
             return Err(AuthError::InvalidPublicKey(
@@ -231,6 +249,17 @@ impl AuthService {
     ///
     /// # Example
     /// ```rust
+    /// use ecdsa_jwt::{auth::{AuthService, AuthRequest},config::JwtConfig};
+    /// use secrecy::Secret;
+    /// use base64::prelude::*;
+    ///
+    /// let config = JwtConfig {  
+    ///     secret: Secret::new(BASE64_STANDARD.encode("your-secret")),
+    ///     ttl: 3600, // 1 hour
+    /// };
+    ///
+    /// let auth_service = AuthService::new(config);
+    /// let jwt_token = "token";
     /// match auth_service.validate_session(&jwt_token) {
     ///     Ok(claims) => {
     ///         println!("Valid session for user: {}", claims.sub);

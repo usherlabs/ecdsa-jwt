@@ -22,7 +22,7 @@ use uuid::Uuid;
 /// The service does not store any state - developers must handle challenge
 /// storage and session management in their own systems.
 pub struct AuthService {
-    jwt_config: JwtConfig,
+    pub jwt_config: JwtConfig,
 }
 
 /// Request structure for authenticating with a signed challenge

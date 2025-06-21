@@ -1,7 +1,7 @@
 use crate::error::AuthError;
 use base64::prelude::*;
 use k256::{
-    ecdsa::{Signature, VerifyingKey, signature::Verifier},
+    ecdsa::{signature::Verifier, Signature, VerifyingKey},
     pkcs8::DecodePublicKey,
 };
 

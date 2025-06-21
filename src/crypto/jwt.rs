@@ -1,7 +1,10 @@
-use crate::{config::JwtConfig, error::AuthError};
+use crate::{
+    config::JwtConfig,
+    error::{AuthError, Result},
+};
 use base64::prelude::*;
 use chrono::Utc;
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -42,7 +45,7 @@ pub struct Claims {
 /// let session_id = Uuid::new_v4();
 /// let token = create_jwt(session_id, &config);
 /// ```
-pub fn create_jwt(session_id: Uuid, config: &JwtConfig) -> Result<String, AuthError> {
+pub fn create_jwt(session_id: Uuid, config: &JwtConfig) -> Result<String> {
     let jwt_secret = decode_secret(config.secret.expose_secret())?;
     let now = Utc::now().timestamp();
     let claims = Claims {
@@ -84,7 +87,7 @@ pub fn create_jwt(session_id: Uuid, config: &JwtConfig) -> Result<String, AuthEr
 /// let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...";
 /// let claims = validate_token(token, &config);
 /// ```
-pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims, AuthError> {
+pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims> {
     let jwt_secret = decode_secret(config.secret.expose_secret())?;
     let token_data = decode::<Claims>(
         token,
@@ -104,7 +107,7 @@ pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims, AuthErr
     Ok(claims)
 }
 
-fn decode_secret(secret: &str) -> Result<Vec<u8>, AuthError> {
+fn decode_secret(secret: &str) -> Result<Vec<u8>> {
     BASE64_STANDARD
         .decode(secret)
         .map_err(|e| AuthError::Base64Error(format!("Failed to decode JWT secret: {}", e)))

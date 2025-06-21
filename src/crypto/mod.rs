@@ -1,3 +1,4 @@
+pub mod challenge;
 pub mod ecdsa;
 pub mod jwt;
 

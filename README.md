@@ -10,6 +10,30 @@ A Rust library for **ECDSA challenge-based authentication** with **JWT session m
 - **Stateless Design** - No built-in storage, you control data persistence
 - **Comprehensive Error Handling** - Detailed error types for debugging
 
+## Publishing
+
+This crate is automatically published to [crates.io](https://crates.io/crates/ecdsa-jwt) using GitHub Actions when a new version tag is pushed.
+
+### Setup for Publishing
+
+1. **Add Cargo Token Secret**: In your GitHub repository settings, add a secret named `CARGO_TOKEN` with your crates.io API token.
+
+2. **Create a Release**: To publish a new version:
+   ```bash
+   # Update version in Cargo.toml
+   # Create and push a new tag
+   git tag v0.1.1
+   git push origin v0.1.1
+   ```
+
+3. **Manual Publishing**: You can also trigger publishing manually from the GitHub Actions tab.
+
+The workflow will:
+- Build the project
+- Run tests
+- Publish to crates.io under the `usherlabs` organisation
+- Contact: `labs@usher.so`
+
 ## Quick Start
 
 Add to your `Cargo.toml`:

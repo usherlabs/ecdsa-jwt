@@ -7,7 +7,7 @@ authors = ["Usher Labs <labs@usher.so>"]
 readme = "README.md"
 keywords = ["ecdsa", "jwt", "authentication", "crypto", "challenge"]
 categories = ["cryptography", "authentication"]
-license = "ISC" 
+license = "MIT"
 repository = "https://github.com/usherlabs/ecdsa-jwt"
 homepage = "https://github.com/usherlabs/ecdsa-jwt"
 

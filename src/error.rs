@@ -21,7 +21,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum AuthError {
     /// ECDSA signature verification failed
-    /// 
+    ///
     /// This error occurs when:
     /// - The signature format is invalid
     /// - The signature doesn't match the challenge and public key
@@ -29,7 +29,7 @@ pub enum AuthError {
     InvalidSignature(String),
 
     /// Public key format is invalid or cannot be parsed
-    /// 
+    ///
     /// This error occurs when:
     /// - The PEM format is malformed
     /// - The key is not a valid ECDSA public key
@@ -37,7 +37,7 @@ pub enum AuthError {
     InvalidPublicKey(String),
 
     /// JWT token is invalid, malformed, or has wrong signature
-    /// 
+    ///
     /// This error occurs when:
     /// - The JWT format is invalid
     /// - The token signature doesn't match the secret
@@ -45,19 +45,19 @@ pub enum AuthError {
     InvalidToken,
 
     /// Token has expired
-    /// 
+    ///
     /// This error occurs when the JWT's expiration timestamp
     /// is in the past relative to the current time.
     ExpiredToken,
 
     /// Challenge has expired
-    /// 
+    ///
     /// This error occurs when a challenge is used after its
     /// configured expiration time.
     ExpiredChallenge,
 
     /// Challenge format is invalid
-    /// 
+    ///
     /// This error occurs when:
     /// - The challenge is empty
     /// - The challenge is not base64 encoded
@@ -65,7 +65,7 @@ pub enum AuthError {
     InvalidChallenge,
 
     /// Base64 decoding failed
-    /// 
+    ///
     /// This error occurs when:
     /// - The input contains invalid base64 characters
     /// - The input length is not valid for base64
@@ -73,7 +73,7 @@ pub enum AuthError {
     Base64Error(String),
 
     /// JWT creation or parsing error
-    /// 
+    ///
     /// This error occurs when:
     /// - JWT encoding/decoding fails
     /// - The secret is invalid
@@ -81,7 +81,7 @@ pub enum AuthError {
     JwtError(String),
 
     /// Generic cryptographic operation error
-    /// 
+    ///
     /// This error occurs for unexpected cryptographic failures
     /// that don't fit into other categories.
     CryptoError(String),

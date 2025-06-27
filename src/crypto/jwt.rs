@@ -4,12 +4,12 @@ use crate::{
 };
 use base64::prelude::*;
 use chrono::Utc;
+use hex;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use sha2::{Sha256, Digest};
-use hex;
 
 /// JWT claims structure for authenticated sessions
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -50,15 +50,19 @@ pub struct Claims {
 ///     ttl: 3600, // 1 hour
 /// };
 /// let session_id = Uuid::new_v4();
-/// 
+///
 /// // Create JWT with public key
 /// let public_key = Some("-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----".to_string());
 /// let token_with_key = create_jwt(session_id, public_key, &config).unwrap();
-/// 
+///
 /// // Create JWT without public key
 /// let token_without_key = create_jwt(session_id, None, &config).unwrap();
 /// ```
-pub fn create_jwt(session_id: Uuid, public_key_pem: Option<String>, config: &JwtConfig) -> Result<String> {
+pub fn create_jwt(
+    session_id: Uuid,
+    public_key_pem: Option<String>,
+    config: &JwtConfig,
+) -> Result<String> {
     let jwt_secret = decode_secret(config.secret.expose_secret())?;
     let now = Utc::now().timestamp();
 
@@ -191,12 +195,12 @@ pub fn verify_signature_from_jwt(
     signature: &[u8],
 ) -> Result<()> {
     let claims = validate_token(token, config)?;
-    
+
     // Use the public key from JWT if available
-    let public_key_pem = claims.public_key_pem.ok_or_else(|| {
-        AuthError::InvalidPublicKey("Public key not included in JWT".to_string())
-    })?;
-    
+    let public_key_pem = claims
+        .public_key_pem
+        .ok_or_else(|| AuthError::InvalidPublicKey("Public key not included in JWT".to_string()))?;
+
     // Verify the signature using the public key from JWT
     crate::crypto::ecdsa::verify_signature(&public_key_pem, challenge, signature)
 }
@@ -215,7 +219,12 @@ mod tests {
             secret: secret_key,
             ttl: 3600,
         };
-        let token = create_jwt(session_id, Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()), &jwt_config).unwrap();
+        let token = create_jwt(
+            session_id,
+            Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+            &jwt_config,
+        )
+        .unwrap();
         let claims = validate_token(&token, &jwt_config).unwrap();
 
         assert_eq!(claims.sub, session_id);
@@ -230,7 +239,12 @@ mod tests {
             secret: secret_key,
             ttl: 3600,
         };
-        let token = create_jwt(session_id, Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()), &jwt_config_correct).unwrap();
+        let token = create_jwt(
+            session_id,
+            Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+            &jwt_config_correct,
+        )
+        .unwrap();
         let jwt_config_incorrect = JwtConfig {
             secret: Secret::new(BASE64_STANDARD.encode("test-secret-wrong-key")),
             ttl: 3600,
@@ -248,7 +262,12 @@ mod tests {
             ttl: -2,
         }; // Already expired
 
-        let token = create_jwt(session_id, Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()), &config).unwrap();
+        let token = create_jwt(
+            session_id,
+            Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+            &config,
+        )
+        .unwrap();
         let result = validate_token(&token, &config);
         assert!(matches!(result, Err(AuthError::ExpiredToken)));
     }

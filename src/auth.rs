@@ -192,7 +192,11 @@ impl AuthService {
     ///     Err(e) => println!("Authentication failed: {}", e),
     /// }
     /// ```
-    pub fn authenticate(&self, auth_request: AuthRequest, include_public_key: bool) -> Result<AuthResponse> {
+    pub fn authenticate(
+        &self,
+        auth_request: AuthRequest,
+        include_public_key: bool,
+    ) -> Result<AuthResponse> {
         if auth_request.public_key_pem.trim().is_empty() {
             return Err(AuthError::InvalidPublicKey(
                 "Invalid Public Key".to_string(),
@@ -218,7 +222,11 @@ impl AuthService {
             &challenge_bytes,
             &signature_bytes,
         ) {
-            Ok(()) => self.create_jwt_response(if include_public_key { Some(auth_request.public_key_pem) } else { None }),
+            Ok(()) => self.create_jwt_response(if include_public_key {
+                Some(auth_request.public_key_pem)
+            } else {
+                None
+            }),
             Err(AuthError::CryptoError(msg)) => {
                 // handle signature error
                 Err(AuthError::InvalidSignature(format!(
@@ -348,7 +356,7 @@ impl AuthService {
     ///     ttl: 3600,
     /// };
     /// let auth_service = AuthService::new(jwt_config);
-    /// 
+    ///
     /// // This would normally be a real JWT token with embedded public key
     /// let jwt_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...";
     /// let challenge = b"challenge bytes";
@@ -364,7 +372,12 @@ impl AuthService {
         challenge: &[u8],
         signature: &[u8],
     ) -> Result<()> {
-        crate::crypto::jwt::verify_signature_from_jwt(jwt_token, &self.jwt_config, challenge, signature)
+        crate::crypto::jwt::verify_signature_from_jwt(
+            jwt_token,
+            &self.jwt_config,
+            challenge,
+            signature,
+        )
     }
 }
 
@@ -458,7 +471,9 @@ mod tests {
 
         // Create a JWT manually for testing
         let public_key = Some("-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----".to_string());
-        let token = crate::crypto::jwt::create_jwt(session_id, public_key, &auth_service.jwt_config).unwrap();
+        let token =
+            crate::crypto::jwt::create_jwt(session_id, public_key, &auth_service.jwt_config)
+                .unwrap();
 
         let claims = auth_service.validate_session(&token).unwrap();
         assert_eq!(claims.sub, session_id);

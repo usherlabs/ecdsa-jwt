@@ -25,14 +25,14 @@ use serde::Deserialize;
 #[derive(Clone, Debug, Deserialize)]
 pub struct JwtConfig {
     /// JWT secret key, base64 encoded string
-    /// 
+    ///
     /// This secret is used to sign and verify JWT tokens. It should be:
     /// - At least 256 bits (32 bytes) of random data
     /// - Base64 encoded
     /// - Kept secure and not committed to version control
     pub secret: Secret<String>,
     /// JWT Time To Live (TTL) in seconds
-    /// 
+    ///
     /// This determines how long JWT tokens remain valid after creation.
     /// Common values:
     /// - 3600 (1 hour) for most applications

@@ -91,10 +91,10 @@ impl fmt::Display for AuthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AuthError::InvalidSignature(msg) => {
-                write!(f, "ECDSA signature verification failed: {}", msg)
+                write!(f, "ECDSA signature verification failed: {msg}")
             }
             AuthError::InvalidPublicKey(msg) => {
-                write!(f, "Invalid public key: {}", msg)
+                write!(f, "Invalid public key: {msg}")
             }
             AuthError::InvalidToken => {
                 write!(f, "Invalid or malformed JWT token")
@@ -109,13 +109,13 @@ impl fmt::Display for AuthError {
                 write!(f, "Invalid challenge format")
             }
             AuthError::Base64Error(msg) => {
-                write!(f, "Base64 decode error: {}", msg)
+                write!(f, "Base64 decode error: {msg}")
             }
             AuthError::JwtError(msg) => {
-                write!(f, "JWT error: {}", msg)
+                write!(f, "JWT error: {msg}")
             }
             AuthError::CryptoError(msg) => {
-                write!(f, "Cryptographic error: {}", msg)
+                write!(f, "Cryptographic error: {msg}")
             }
         }
     }

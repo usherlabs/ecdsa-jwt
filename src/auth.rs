@@ -209,13 +209,12 @@ impl AuthService {
             return Err(AuthError::InvalidSignature("Invalid Signature".to_string()));
         }
 
-        let challenge_bytes = base64::prelude::BASE64_STANDARD
+        let challenge_bytes = BASE64_STANDARD
             .decode(&auth_request.challenge)
-            .map_err(|e| AuthError::Base64Error(format!("Invalid challenge encoding: {}", e)))?;
-
-        let signature_bytes = base64::prelude::BASE64_STANDARD
+            .map_err(|e| AuthError::Base64Error(format!("Invalid challenge encoding: {e}")))?;
+        let signature_bytes = BASE64_STANDARD
             .decode(&auth_request.signature)
-            .map_err(|e| AuthError::Base64Error(format!("Invalid signature encoding: {}", e)))?;
+            .map_err(|e| AuthError::Base64Error(format!("Invalid signature encoding: {e}")))?;
 
         match verify_signature(
             &auth_request.public_key_pem,
@@ -227,34 +226,18 @@ impl AuthService {
             } else {
                 None
             }),
-            Err(AuthError::CryptoError(msg)) => {
-                // handle signature error
-                Err(AuthError::InvalidSignature(format!(
-                    "Invalid signature format: {}",
-                    msg
-                )))
-            }
-            Err(AuthError::InvalidPublicKey(msg)) => {
-                // Handle public key errors
-                Err(AuthError::InvalidPublicKey(format!(
-                    "Invalid public key format: {}",
-                    msg
-                )))
-            }
-            Err(AuthError::InvalidSignature(msg)) => {
-                // Handle verification failures
-                Err(AuthError::InvalidSignature(format!(
-                    "Signature verification failed: {}",
-                    msg
-                )))
-            }
-            Err(other_error) => {
-                //  Handle unexpected errors
-                Err(AuthError::CryptoError(format!(
-                    "Unexpected verification error: {}",
-                    other_error
-                )))
-            }
+            Err(AuthError::InvalidSignature(msg)) => Err(AuthError::InvalidSignature(format!(
+                "Invalid signature format: {msg}"
+            ))),
+            Err(AuthError::InvalidPublicKey(msg)) => Err(AuthError::InvalidPublicKey(format!(
+                "Invalid public key format: {msg}"
+            ))),
+            Err(AuthError::CryptoError(msg)) => Err(AuthError::InvalidSignature(format!(
+                "Signature verification failed: {msg}"
+            ))),
+            Err(other_error) => Err(AuthError::CryptoError(format!(
+                "Unexpected verification error: {other_error}"
+            ))),
         }
     }
 

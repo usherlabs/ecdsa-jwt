@@ -39,7 +39,7 @@ pub fn generate_challenge() -> String {
 pub fn decode_challenge(challenge_b64: &str) -> Result<Vec<u8>> {
     BASE64_STANDARD
         .decode(challenge_b64)
-        .map_err(|e| AuthError::Base64Error(format!("Failed to decode challenge: {}", e)))
+        .map_err(|e| AuthError::Base64Error(format!("Failed to decode challenge: {e}")))
 }
 
 #[cfg(test)]

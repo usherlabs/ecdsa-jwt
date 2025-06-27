@@ -35,14 +35,13 @@ pub fn verify_signature(
     signature_der: &[u8],
 ) -> Result<(), AuthError> {
     let signature = Signature::from_der(signature_der)
-        .map_err(|e| AuthError::CryptoError(format!("Failed to parse signature: {}", e)))?;
+        .map_err(|e| AuthError::CryptoError(format!("Failed to parse signature: {e}")))?;
 
-    let verifying_key = VerifyingKey::from_public_key_pem(public_key_pem).map_err(|e| {
-        AuthError::InvalidPublicKey(format!("Failed to derive verifying key: {}", e))
-    })?;
+    let verifying_key = VerifyingKey::from_public_key_pem(public_key_pem)
+        .map_err(|e| AuthError::InvalidPublicKey(format!("Failed to derive verifying key: {e}")))?;
     verifying_key
         .verify(challenge, &signature)
-        .map_err(|e| AuthError::InvalidSignature(format!("Failed to verfiy: {}", e)))
+        .map_err(|e| AuthError::InvalidSignature(format!("Failed to verfiy: {e}")))
 }
 
 /// Verify an ECDSA signature with base64-encoded inputs (convenience function)
@@ -59,11 +58,11 @@ pub fn verify_signature_b64(
 ) -> Result<(), AuthError> {
     let challenge_bytes = BASE64_STANDARD
         .decode(challenge_b64)
-        .map_err(|e| AuthError::Base64Error(format!("Failed to decode challenge: {}", e)))?;
+        .map_err(|e| AuthError::Base64Error(format!("Failed to decode challenge: {e}")))?;
 
     let signature_bytes = BASE64_STANDARD
         .decode(signature_b64)
-        .map_err(|e| AuthError::Base64Error(format!("Failed to decode signature: {}", e)))?;
+        .map_err(|e| AuthError::Base64Error(format!("Failed to decode signature: {e}")))?;
 
     verify_signature(public_key_pem, &challenge_bytes, &signature_bytes)
 }

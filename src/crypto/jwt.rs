@@ -86,7 +86,7 @@ pub fn create_jwt(
         &claims,
         &EncodingKey::from_secret(&jwt_secret),
     )
-    .map_err(|e| AuthError::JwtError(format!("Failed to create JWT: {}", e)))?;
+    .map_err(|e| AuthError::JwtError(format!("Failed to create JWT: {e}")))?;
 
     Ok(token)
 }
@@ -126,7 +126,7 @@ pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims> {
         jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::ExpiredToken,
         jsonwebtoken::errors::ErrorKind::InvalidSignature => AuthError::InvalidChallenge,
         jsonwebtoken::errors::ErrorKind::InvalidToken => AuthError::InvalidToken,
-        _ => AuthError::JwtError(format!("JWT validation failed: {}", e)),
+        _ => AuthError::JwtError(format!("JWT validation failed: {e}")),
     })?;
     let claims = token_data.claims;
     if claims.exp <= Utc::now().timestamp() {
@@ -138,7 +138,7 @@ pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims> {
 fn decode_secret(secret: &str) -> Result<Vec<u8>> {
     BASE64_STANDARD
         .decode(secret)
-        .map_err(|e| AuthError::Base64Error(format!("Failed to decode JWT secret: {}", e)))
+        .map_err(|e| AuthError::Base64Error(format!("Failed to decode JWT secret: {e}")))
 }
 
 /// Create a hash of the public key for storage in JWT claims

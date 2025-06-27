@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // This will fail, but demonstrates the API structure
-    match auth_service.authenticate(auth_request) {
+    match auth_service.authenticate(auth_request, false) {
         Ok(response) => {
             println!("Authentication successful!");
             println!("   JWT Token: {}", response.session_token);
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nJWT Token Operations...");
 
     let session_id = uuid::Uuid::new_v4();
-    let jwt_token = ecdsa_jwt::crypto::jwt::create_jwt(session_id, &auth_service.jwt_config)?;
+    let jwt_token = ecdsa_jwt::crypto::jwt::create_jwt(session_id, None, &auth_service.jwt_config)?;
 
     println!("Created JWT: {}...", &jwt_token[..50]);
 

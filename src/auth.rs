@@ -143,7 +143,7 @@ impl AuthService {
     ///     public_key_pem: "client_public_key".to_string(),
     /// };
     /// let auth_service = AuthService::new(config);
-    /// match auth_service.authenticate(auth_request) {
+    /// match auth_service.authenticate(auth_request, true) { // true = include public key in JWT
     ///     Ok(response) => {
     ///         println!("Authentication successful!");
     ///         println!("JWT: {}", response.session_token);
@@ -151,7 +151,7 @@ impl AuthService {
     ///     Err(e) => println!("Authentication failed: {}", e),
     /// }
     /// ```
-    pub fn authenticate(&self, auth_request: AuthRequest) -> Result<AuthResponse> {
+    pub fn authenticate(&self, auth_request: AuthRequest, include_public_key: bool) -> Result<AuthResponse> {
         if auth_request.public_key_pem.trim().is_empty() {
             return Err(AuthError::InvalidPublicKey(
                 "Invalid Public Key".to_string(),
@@ -177,7 +177,7 @@ impl AuthService {
             &challenge_bytes,
             &signature_bytes,
         ) {
-            Ok(()) => self.create_jwt_response(),
+            Ok(()) => self.create_jwt_response(if include_public_key { Some(auth_request.public_key_pem) } else { None }),
             Err(AuthError::CryptoError(msg)) => {
                 // handle signature error
                 Err(AuthError::InvalidSignature(format!(
@@ -215,13 +215,16 @@ impl AuthService {
     /// It generates a new session ID and creates a JWT token with the configured
     /// secret and expiration time.
     ///
+    /// # Arguments
+    /// * `public_key_pem` - Optional PEM-encoded public key used for authentication
+    ///
     /// # Returns
     /// * `Ok(AuthResponse)` - JWT token created successfully
     /// * `Err(AuthError)` - JWT creation failed
-    fn create_jwt_response(&self) -> Result<AuthResponse> {
+    fn create_jwt_response(&self, public_key_pem: Option<String>) -> Result<AuthResponse> {
         let session_id = Uuid::new_v4();
 
-        let jwt_token = create_jwt(session_id, &self.jwt_config)?;
+        let jwt_token = create_jwt(session_id, public_key_pem, &self.jwt_config)?;
 
         let expires_at = chrono::Utc::now().timestamp() + self.jwt_config.ttl;
 
@@ -277,6 +280,51 @@ impl AuthService {
         }
         validate_token(token, &self.jwt_config)
     }
+
+    /// Verify a signature using the public key from JWT claims
+    ///
+    /// This method extracts the public key from the JWT and uses it to verify
+    /// a signature, eliminating the need to pass the public key separately.
+    ///
+    /// # Arguments
+    /// * `jwt_token` - JWT token containing public key information
+    /// * `challenge` - Challenge bytes that were signed
+    /// * `signature` - Signature bytes to verify
+    ///
+    /// # Returns
+    /// * `Ok(())` if signature is valid
+    /// * `Err(AuthError)` if verification fails
+    ///
+    /// # Example
+    /// ```rust
+    /// use ecdsa_jwt::auth::AuthService;
+    /// use ecdsa_jwt::config::JwtConfig;
+    /// use secrecy::Secret;
+    /// use base64::prelude::*;
+    ///
+    /// let jwt_config = JwtConfig {
+    ///     secret: Secret::new(BASE64_STANDARD.encode("test-secret")),
+    ///     ttl: 3600,
+    /// };
+    /// let auth_service = AuthService::new(jwt_config);
+    /// 
+    /// // This would normally be a real JWT token with embedded public key
+    /// let jwt_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...";
+    /// let challenge = b"challenge bytes";
+    /// let signature = &[0x30, 0x44, 0x02, 0x20]; // Example DER signature
+    ///
+    /// // Note: This will fail with a real JWT that doesn't contain a public key
+    /// // This is just demonstrating the API usage
+    /// let _result = auth_service.verify_signature_from_jwt(jwt_token, challenge, signature);
+    /// ```
+    pub fn verify_signature_from_jwt(
+        &self,
+        jwt_token: &str,
+        challenge: &[u8],
+        signature: &[u8],
+    ) -> Result<()> {
+        crate::crypto::jwt::verify_signature_from_jwt(jwt_token, &self.jwt_config, challenge, signature)
+    }
 }
 
 #[cfg(test)]
@@ -315,7 +363,7 @@ mod tests {
                 .to_string(),
         };
 
-        let result = auth_service.authenticate(auth_request);
+        let result = auth_service.authenticate(auth_request, true);
         assert!(matches!(result, Err(AuthError::InvalidChallenge)));
     }
 
@@ -330,7 +378,7 @@ mod tests {
                 .to_string(),
         };
 
-        let result = auth_service.authenticate(auth_request);
+        let result = auth_service.authenticate(auth_request, true);
         assert!(matches!(result, Err(AuthError::InvalidSignature(_))));
     }
 
@@ -344,7 +392,7 @@ mod tests {
             public_key_pem: "".to_string(),
         };
 
-        let result = auth_service.authenticate(auth_request);
+        let result = auth_service.authenticate(auth_request, true);
         assert!(matches!(result, Err(AuthError::InvalidPublicKey(_))));
     }
     #[test]
@@ -358,7 +406,7 @@ mod tests {
                 .to_string(),
         };
 
-        let result = auth_service.authenticate(auth_request);
+        let result = auth_service.authenticate(auth_request, true);
         assert!(matches!(result, Err(AuthError::InvalidSignature(_))));
     }
 
@@ -368,7 +416,8 @@ mod tests {
         let session_id = Uuid::new_v4();
 
         // Create a JWT manually for testing
-        let token = crate::crypto::jwt::create_jwt(session_id, &auth_service.jwt_config).unwrap();
+        let public_key = Some("-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----".to_string());
+        let token = crate::crypto::jwt::create_jwt(session_id, public_key, &auth_service.jwt_config).unwrap();
 
         let claims = auth_service.validate_session(&token).unwrap();
         assert_eq!(claims.sub, session_id);

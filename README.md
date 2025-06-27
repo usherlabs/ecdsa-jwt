@@ -1,38 +1,14 @@
 # ecdsa-jwt
 
-A Rust library for **ECDSA challenge-based authentication** with **JWT session management**. Provides server-side cryptographic operations for secure, passwordless authentication where clients prove ownership of ECDSA private keys by signing challenges.
+A Rust library for **ECDSA challenge-based authentication** with **flexible JWT session management**. Provides server-side cryptographic operations for secure, passwordless authentication where clients prove ownership of ECDSA private keys by signing challenges.
 
 ## Features
 
 - **ECDSA Signature Verification** - Verify signatures using secp256k1 curve
 - **Secure Challenge Generation** - Cryptographically secure 32-byte challenges
-- **JWT Session Management** - Create and validate session tokens
+- **Flexible JWT Session Management** - Create and validate JWTs with or without embedded public keys
 - **Stateless Design** - No built-in storage, you control data persistence
 - **Comprehensive Error Handling** - Detailed error types for debugging
-
-## Publishing
-
-This crate is automatically published to [crates.io](https://crates.io/crates/ecdsa-jwt) using GitHub Actions when a new version tag is pushed.
-
-### Setup for Publishing
-
-1. **Add Cargo Token Secret**: In your GitHub repository settings, add a secret named `CARGO_TOKEN` with your crates.io API token.
-
-2. **Create a Release**: To publish a new version:
-   ```bash
-   # Update version in Cargo.toml
-   # Create and push a new tag
-   git tag v0.1.1
-   git push origin v0.1.1
-   ```
-
-3. **Manual Publishing**: You can also trigger publishing manually from the GitHub Actions tab.
-
-The workflow will:
-- Build the project
-- Run tests
-- Publish to crates.io under the `usherlabs` organisation
-- Contact: `labs@usher.so`
 
 ## Quick Start
 
@@ -45,9 +21,26 @@ ecdsa-jwt = "0.1"
 
 ## Usage
 
-### Using OpenSSL to Generate Keys
+### Authentication Flow
 
-You can generate ECDSA keys using OpenSSL:
+See the authentication flow in the [basic_workflow example](examples/basic_workflow.rs):
+
+```bash
+cargo run --example basic_workflow
+```
+
+The example demonstrates:
+
+- Challenge generation and storage
+- Authentication with signed challenges
+- JWT creation with optional public key inclusion
+- JWT validation and session management
+
+
+
+### Generating ECDSA Keys
+
+#### Using OpenSSL (Recommended)
 
 ```bash
 # Generate private key
@@ -60,58 +53,71 @@ openssl ec -in private_key.pem -pubout -out public_key.pem
 # View the keys
 cat private_key.pem
 cat public_key.pem
+
+# Generate SHA256 hash of public key
+cat public_key.pem | openssl dgst -sha256
 ```
 
-
-### Basic Authentication Flow
+#### Using Rust (p256 crate)
 
 ```rust
-use ecdsa_jwt::{AuthService, AuthRequest, JwtConfig};
-use secrecy::Secret;
+use p256::ecdsa::{SigningKey, VerifyingKey};
+use p256::SecretKey;
+use rand::rngs::OsRng;
 use base64::prelude::*;
-use std::collections::HashMap;
 
-// 1. Setup authentication service
-let jwt_config = JwtConfig {
-    secret: Secret::new(BASE64_STANDARD.encode("your-secret-key")),
-    ttl: 3600, // 1 hour
-};
-let auth_service = AuthService::new(jwt_config);
+// Generate key pair
+let private_key = SecretKey::random(&mut OsRng);
+let signing_key = SigningKey::from(private_key);
+let verifying_key = VerifyingKey::from(&signing_key);
 
-// 2. Your challenge storage (Redis, database, etc.)
-let mut challenges: HashMap<String, String> = HashMap::new();
+// Export public key as PEM
+let public_key_pem = verifying_key.to_encoded_point(false).to_string();
+let public_key_pem = format!(
+    "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+    base64::engine::general_purpose::STANDARD.encode(public_key_pem.as_bytes())
+);
+```
 
-// 3. Generate challenge (server endpoint)
-let challenge = auth_service.generate_challenge();
-let session_id = "unique-session-id";
-challenges.insert(session_id.to_string(), challenge.clone());
+#### JWT Structure Examples
 
-// 4. Authenticate signed challenge (server endpoint)
-let stored_challenge = challenges.remove(session_id).unwrap();
-let auth_request = AuthRequest {
-    challenge: stored_challenge,
-    signature: "base64-encoded-signature".to_string(),
-    public_key_pem: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string(),
-};
-
-match auth_service.authenticate(auth_request) {
-    Ok(response) => {
-        println!("JWT Token: {}", response.session_token);
-        // Use JWT for subsequent API requests
-    }
-    Err(e) => println!("Authentication failed: {}", e),
-}
-
-// 5. Validate JWT tokens
-match auth_service.validate_session(&jwt_token) {
-    Ok(claims) => println!("Valid session for user: {}", claims.sub),
-    Err(_) => println!("Invalid token"),
+**With public key (for signature verification):**
+```json
+{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "exp": 1640995200,
+  "iat": 1640991600,
+  "key_hash": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678",
+  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----"
 }
 ```
 
-### Complete Client-Side Example
+**Without public key (smaller, for simple authentication):**
+```json
+{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "exp": 1640995200,
+  "iat": 1640991600,
+  "key_hash": null,
+  "public_key_pem": null
+}
+```
 
-Here's a complete client-side example using the generated keys:
+#### Creating JWTs Manually
+
+```rust
+use ecdsa_jwt::crypto::jwt::create_jwt;
+use uuid::Uuid;
+
+// Create JWT without public key (smaller size)
+let token = create_jwt(session_id, None, &config)?;
+
+// Create JWT with public key
+let public_key = Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string());
+let token = create_jwt(session_id, public_key, &config)?;
+```
+
+### Client-Side Signing Example
 
 ```rust
 use p256::ecdsa::{SigningKey, VerifyingKey};
@@ -149,11 +155,23 @@ let challenge_bytes = base64::decode(&challenge)?;
 let signature_bytes = base64::decode(&signature)?;
 verify_signature(&public_key_pem, &challenge_bytes, &signature_bytes)?;
 
-// Create JWT
-let token = create_jwt(session_id, &jwt_config)?;
+// Create JWT (with optional public key)
+let token = create_jwt(session_id, Some(public_key_pem), &jwt_config)?;
 
 // Validate JWT
 let claims = validate_token(&token, &jwt_config)?;
+
+// Verify signature using public key from JWT (requires JWT with embedded public key)
+use ecdsa_jwt::AuthService;
+let auth_service = AuthService::new(jwt_config);
+match auth_service.verify_signature_from_jwt(
+    &token,
+    challenge.as_bytes(),
+    &signature_bytes
+) {
+    Ok(()) => println!("Signature verified using JWT public key!"),
+    Err(e) => println!("Verification failed: {}", e),
+}
 ```
 
 ## API Reference
@@ -164,8 +182,9 @@ let claims = validate_token(&token, &jwt_config)?;
 impl AuthService {
     pub fn new(jwt_config: JwtConfig) -> Self;
     pub fn generate_challenge(&self) -> String;
-    pub fn authenticate(&self, request: AuthRequest) -> Result<AuthResponse>;
+    pub fn authenticate(&self, request: AuthRequest, include_public_key: bool) -> Result<AuthResponse>;
     pub fn validate_session(&self, token: &str) -> Result<Claims>;
+    pub fn verify_signature_from_jwt(&self, jwt_token: &str, challenge: &[u8], signature: &[u8]) -> Result<()>;
 }
 ```
 
@@ -190,9 +209,11 @@ pub struct JwtConfig {
 }
 
 pub struct Claims {
-    pub sub: Uuid,  // User/session ID
-    pub exp: i64,   // Expiration timestamp
-    pub iat: i64,   // Issued at timestamp
+    pub sub: Uuid,              // Session identifier
+    pub exp: i64,              // Expiration timestamp
+    pub iat: i64,              // Issued at timestamp
+    pub key_hash: Option<String>,      // SHA256 hash of public key (optional)
+    pub public_key_pem: Option<String>, // Full public key PEM (optional)
 }
 ```
 
@@ -207,18 +228,36 @@ pub fn decode_challenge(challenge_b64: &str) -> Result<Vec<u8>>;
 pub fn verify_signature(public_key_pem: &str, challenge: &[u8], signature: &[u8]) -> Result<()>;
 pub fn verify_signature_b64(public_key_pem: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
 
-// JWT operations
-pub fn create_jwt(session_id: Uuid, config: &JwtConfig) -> Result<String>;
+// JWT operations (public key is optional)
+pub fn create_jwt(session_id: Uuid, public_key_pem: Option<String>, config: &JwtConfig) -> Result<String>;
 pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims>;
+pub fn verify_signature_from_jwt(token: &str, config: &JwtConfig, challenge: &[u8], signature: &[u8]) -> Result<()>;
 ```
 
-## Security Notes
+## Security Considerations
 
-- **Challenge storage is your responsibility** - Use Redis, database, or secure cache
+### JWT Security
+
+- **HMAC-SHA256 signing** - Prevents tampering
+- **Expiration timestamps** - Automatic token expiry
+- **Cryptographic verification** - Cannot be forged without the secret
+- **Stateless design** - No server-side session storage required
+
+### Best Practices
+
+- **Use strong secrets** (at least 256 bits) for JWT signing
+- **Set appropriate TTL** (1 hour recommended for most use cases)
 - **Always use HTTPS** in production
-- **Challenges should expire quickly** (5-15 minutes recommended)
+- **Store challenges securely** with short expiration (5-15 minutes)
 - **Remove challenges after use** to prevent replay attacks
-- **Private key operations happen client-side** - This library only verifies signatures
+- **Validate tokens on every request** to protected resources
+
+### Public Key Management
+
+- **Include public key in JWT** when you need signature verification
+- **Use key hash only** for smaller JWTs when full key isn't needed
+- **Store key mappings** in database when using hash-only approach
+- **Rotate keys regularly** for enhanced security
 
 ## Testing
 
@@ -228,4 +267,4 @@ cargo test
 
 ## License
 
-This project is licensed under the ISC License - see the [LICENSE](https://opensource.org/license/isc-license-txt) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

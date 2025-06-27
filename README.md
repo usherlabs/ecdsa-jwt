@@ -45,6 +45,24 @@ ecdsa-jwt = "0.1"
 
 ## Usage
 
+### Using OpenSSL to Generate Keys
+
+You can generate ECDSA keys using OpenSSL:
+
+```bash
+# Generate private key
+openssl ecparam -genkey -name secp256k1 -out private_key.pem
+openssl ec -in private_key.pem -out private_key.pem
+
+# Extract public key
+openssl ec -in private_key.pem -pubout -out public_key.pem
+
+# View the keys
+cat private_key.pem
+cat public_key.pem
+```
+
+
 ### Basic Authentication Flow
 
 ```rust
@@ -89,6 +107,33 @@ match auth_service.validate_session(&jwt_token) {
     Ok(claims) => println!("Valid session for user: {}", claims.sub),
     Err(_) => println!("Invalid token"),
 }
+```
+
+### Complete Client-Side Example
+
+Here's a complete client-side example using the generated keys:
+
+```rust
+use p256::ecdsa::{SigningKey, VerifyingKey};
+use p256::SecretKey;
+use rand::rngs::OsRng;
+use base64::prelude::*;
+
+// Load private key from PEM file
+let private_key_pem = std::fs::read_to_string("private_key.pem").unwrap();
+let private_key = SecretKey::from_sec1_pem(&private_key_pem).unwrap();
+let signing_key = SigningKey::from(private_key);
+
+// Load public key from PEM file  
+let public_key_pem = std::fs::read_to_string("public_key.pem").unwrap();
+
+// Sign a challenge
+let challenge = "base64-encoded-challenge-from-server";
+let challenge_bytes = base64::decode(challenge).unwrap();
+let signature = signing_key.sign(&challenge_bytes);
+let signature_b64 = base64::encode(signature.to_bytes());
+
+// Send to server: challenge, signature_b64, and public_key_pem
 ```
 
 ### Individual Functions

@@ -21,6 +21,19 @@ use uuid::Uuid;
 ///
 /// The service does not store any state - developers must handle challenge
 /// storage and session management in their own systems.
+///
+/// # Example
+/// ```rust
+/// use ecdsa_jwt::{AuthService, JwtConfig};
+/// use secrecy::Secret;
+/// use base64::prelude::*;
+///
+/// let config = JwtConfig {
+///     secret: Secret::new(BASE64_STANDARD.encode("your-secret")),
+///     ttl: 3600, // 1 hour
+/// };
+/// let auth_service = AuthService::new(config);
+/// ```
 pub struct AuthService {
     pub jwt_config: JwtConfig,
 }
@@ -31,10 +44,24 @@ pub struct AuthService {
 /// - The original challenge that was provided to the client
 /// - The client's signature of that challenge (proves private key ownership)
 /// - The client's public key (used to verify the signature)
+///
+/// # Example
+/// ```rust
+/// use ecdsa_jwt::AuthRequest;
+///
+/// let auth_request = AuthRequest {
+///     challenge: "base64-encoded-challenge".to_string(),
+///     signature: "base64-encoded-signature".to_string(),
+///     public_key_pem: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string(),
+/// };
+/// ```
 #[derive(Serialize, Deserialize)]
 pub struct AuthRequest {
+    /// Base64-encoded challenge that was signed by the client
     pub challenge: String,
+    /// Base64-encoded ECDSA signature of the challenge
     pub signature: String,
+    /// PEM-encoded public key used to verify the signature
     pub public_key_pem: String,
 }
 
@@ -44,10 +71,24 @@ pub struct AuthRequest {
 /// - A JWT token for subsequent API requests
 /// - Session identifier for tracking
 /// - Token expiration timestamp
+///
+/// # Example
+/// ```rust
+/// use ecdsa_jwt::AuthResponse;
+///
+/// let response = AuthResponse {
+///     session_id: uuid::Uuid::new_v4(),
+///     session_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...".to_string(),
+///     expires_at: 1640995200,
+/// };
+/// ```
 #[derive(Serialize, Deserialize)]
 pub struct AuthResponse {
+    /// Unique session identifier
     pub session_id: Uuid,
+    /// JWT token for subsequent API requests
     pub session_token: String,
+    /// Unix timestamp when the token expires
     pub expires_at: i64,
 }
 

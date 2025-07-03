@@ -52,7 +52,7 @@ pub struct AuthService {
 /// let auth_request = AuthRequest {
 ///     challenge: "base64-encoded-challenge".to_string(),
 ///     signature: "base64-encoded-signature".to_string(),
-///     public_key_pem: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string(),
+///     public_key: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string(),
 /// };
 /// ```
 #[derive(Serialize, Deserialize)]
@@ -62,7 +62,7 @@ pub struct AuthRequest {
     /// Base64-encoded ECDSA signature of the challenge
     pub signature: String,
     /// PEM-encoded public key used to verify the signature
-    pub public_key: PubKey,
+    pub public_key: String,
 }
 
 /// Represents a public key in one of two supported formats.
@@ -228,7 +228,7 @@ impl AuthService {
     /// let auth_request = AuthRequest {
     ///     challenge: "stored_challenge".to_string(),
     ///     signature: "client_signature".to_string(),
-    ///     public_key_pem: "client_public_key".to_string(),
+    ///     public_key: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string(),
     /// };
     /// let auth_service = AuthService::new(config);
     /// match auth_service.authenticate(auth_request, true) { // true = include public key in JWT
@@ -436,10 +436,7 @@ mod tests {
         let auth_request = AuthRequest {
             challenge: "".to_string(),
             signature: BASE64_STANDARD.encode([0u8; 64]),
-            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                .to_string()
-                .try_into()
-                .unwrap(),
+            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----".to_string(),
         };
 
         let result = auth_service.authenticate(auth_request, true);
@@ -453,10 +450,7 @@ mod tests {
         let auth_request = AuthRequest {
             challenge: BASE64_STANDARD.encode([0u8; 32]),
             signature: "".to_string(),
-            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                .to_string()
-                .try_into()
-                .unwrap(),
+            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----".to_string(),
         };
 
         let result = auth_service.authenticate(auth_request, true);
@@ -465,8 +459,15 @@ mod tests {
 
     #[test]
     fn test_authenticate_with_empty_public_key() {
-        let empty_pub_key = "".to_string();
-        let result = PubKey::try_from(empty_pub_key);
+        let auth_service = create_test_auth_service();
+
+        let auth_request = AuthRequest {
+            challenge: BASE64_STANDARD.encode([0u8; 32]),
+            signature: BASE64_STANDARD.encode([0u8; 64]),
+            public_key: "".to_string(),
+        };
+
+        let result = auth_service.authenticate(auth_request, true);
         assert!(matches!(result, Err(AuthError::InvalidPublicKey(_))));
     }
     #[test]
@@ -476,10 +477,7 @@ mod tests {
         let auth_request = AuthRequest {
             challenge: BASE64_STANDARD.encode([0u8; 16]), // Wrong length
             signature: BASE64_STANDARD.encode([0u8; 64]),
-            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                .to_string()
-                .try_into()
-                .unwrap(),
+            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----".to_string(),
         };
 
         let result = auth_service.authenticate(auth_request, true);

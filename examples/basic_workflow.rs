@@ -2,10 +2,9 @@
 
 use base64::prelude::*;
 use ecdsa_jwt::{
-    auth::{AuthRequest, AuthService, PubKey},
+    auth::{AuthRequest, AuthService},
     config::JwtConfig,
 };
-use std::str::FromStr;
 use secrecy::Secret;
 use std::collections::HashMap;
 
@@ -36,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auth_request = AuthRequest {
         challenge,
         signature: "dummy-signature-for-example".to_string(),
-        public_key: "-----BEGIN PUBLIC KEY-----\nDummyKeyForExample\n-----END PUBLIC KEY-----".to_string().try_into()?
+        public_key: "-----BEGIN PUBLIC KEY-----\nDummyKeyForExample\n-----END PUBLIC KEY-----".to_string()
     };
 
     // This will fail, but demonstrates the API structure

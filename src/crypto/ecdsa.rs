@@ -1,9 +1,10 @@
-use crate::error::AuthError;
+use crate::{auth::PubKey, error::AuthError};
 use base64::prelude::*;
 use k256::{
     ecdsa::{signature::Verifier, Signature, VerifyingKey},
     pkcs8::DecodePublicKey,
 };
+use simple_ecdsa_verifier::validate_ecdsa_signature;
 
 /// Verify an ECDSA signature against a challenge using a public key
 ///
@@ -29,19 +30,77 @@ use k256::{
 ///     Err(e) => println!("Verification failed: {}", e),
 /// }
 /// ```
-pub fn verify_signature(
-    public_key_pem: &str,
+pub fn verify_signature_pem(
+    public_key: &str,
     challenge: &[u8],
     signature_der: &[u8],
 ) -> Result<(), AuthError> {
     let signature = Signature::from_der(signature_der)
         .map_err(|e| AuthError::CryptoError(format!("Failed to parse signature: {e}")))?;
 
-    let verifying_key = VerifyingKey::from_public_key_pem(public_key_pem)
+    let verifying_key = VerifyingKey::from_public_key_pem(public_key)
         .map_err(|e| AuthError::InvalidPublicKey(format!("Failed to derive verifying key: {e}")))?;
     verifying_key
         .verify(challenge, &signature)
         .map_err(|e| AuthError::InvalidSignature(format!("Failed to verfiy: {e}")))
+}
+
+/// Verifies an Ethereum-style ECDSA signature against a 20-byte address.
+///
+/// Converts the DER-encoded signature to hex, the challenge to a UTF-8 string,
+/// and validates that the signature recovers the provided public key address.
+///
+/// # Arguments
+/// * `public_key` - A 0x-prefixed Ethereum address string (e.g. "0xabc...")
+/// * `challenge` - Raw bytes of the challenge message (e.g. from server)
+/// * `signature_der` - DER-encoded ECDSA signature as bytes
+///
+/// # Returns
+/// * `Ok(())` if the signature is valid and recovers the address
+/// * `Err(AuthError)` if the signature is invalid or recovery fails
+pub fn verify_signature_eth(
+    public_key: &str,
+    challenge: &[u8],
+    signature_der: &[u8],
+) -> Result<(), AuthError> {
+    let public_key = public_key.to_string();
+    let signature_hex = hex::encode(signature_der);
+    let message = String::from_utf8(challenge.to_vec()).unwrap();
+
+    let signature_is_valid = validate_ecdsa_signature(&signature_hex, &message, &public_key)
+        .map_err(|e| AuthError::CryptoError(e.to_string()))?;
+
+    if !signature_is_valid {
+        return Err(AuthError::InvalidSignature("invalid signature".into()));
+    }
+
+    Ok(())
+}
+
+/// Verifies a public key of unknown format (PEM or Ethereum) against a signature and challenge.
+///
+/// Internally detects the key type and dispatches to the appropriate verifier.
+///
+/// # Arguments
+/// * `public_key` - Either a PEM-encoded public key or a 0x-prefixed Ethereum address
+/// * `challenge` - Raw challenge bytes (must match what was signed)
+/// * `signature_der` - DER-encoded ECDSA signature
+///
+/// # Returns
+/// * `Ok(())` if the signature is valid for the public key
+/// * `Err(AuthError)` if the key is invalid or the signature check fails
+pub fn verify_signature(
+    public_key: &str,
+    challenge: &[u8],
+    signature_der: &[u8],
+) -> Result<(), AuthError> {
+    let public_key: PubKey = public_key.to_string().try_into()?;
+    let pub_key_str = public_key.to_string();
+
+    match public_key {
+        PubKey::EthAddress(_) => verify_signature_eth(&pub_key_str, challenge, signature_der),
+        PubKey::Pem(_) => verify_signature_pem(&pub_key_str, challenge, signature_der),
+    }
 }
 
 /// Verify an ECDSA signature with base64-encoded inputs (convenience function)
@@ -64,7 +123,7 @@ pub fn verify_signature_b64(
         .decode(signature_b64)
         .map_err(|e| AuthError::Base64Error(format!("Failed to decode signature: {e}")))?;
 
-    verify_signature(public_key_pem, &challenge_bytes, &signature_bytes)
+    verify_signature_pem(public_key_pem, &challenge_bytes, &signature_bytes)
 }
 
 #[cfg(test)]
@@ -86,7 +145,7 @@ mod tests {
         let challenge = b"test challenge";
         let invalid_signature = &[0xFF, 0xFF]; // Invalid DER
 
-        let result = verify_signature(key, challenge, invalid_signature);
+        let result = verify_signature_pem(key, challenge, invalid_signature);
         assert!(matches!(result, Err(AuthError::CryptoError(_))));
     }
 
@@ -95,7 +154,7 @@ mod tests {
         let invalid_key = "not a valid PEM key";
         let challenge = b"test challenge";
 
-        let result = verify_signature(invalid_key, challenge, VALID_DER_SIGNATURE);
+        let result = verify_signature_pem(invalid_key, challenge, VALID_DER_SIGNATURE);
         assert!(matches!(result, Err(AuthError::InvalidPublicKey(_))));
     }
 
@@ -123,5 +182,26 @@ mod tests {
         if let Err(AuthError::Base64Error(msg)) = result {
             assert!(msg.contains("signature"));
         }
+    }
+
+    // Tests for verify_signature_eth function
+    #[test]
+    fn test_valid_eth_signature_format() {
+        let pub_key = "0xd1798d6b74ef965d6a60f45e0036f44aed3dfa1b";
+        let challenge = b"4RvWUp3E9YerY78Kn5UyyEQPTiFs0tIr/mhAeCbwIpY=";
+        let valid_signature = hex::decode("88bd1f104e132178aea55731be455a5c91b3e15b46f2599e9472d926270d458f4116eea0273fb5dc36238992154afc652aa7c1d91569b596db00146b4e5443fa1b").unwrap();
+
+        let result = verify_signature_eth(pub_key, challenge, &valid_signature);
+        assert!(matches!(result, Ok(())));
+    }
+
+    #[test]
+    fn test_invalid_eth_public_key() {
+        let pub_key = "0xd1798d6b74ef965d6a60f45e0036f44aed3dfa1b";
+        let challenge = b"4RvWUp3E9YerY78Kn5UyyEQPTiFs0tIr/mhAeCbwIpY=";
+        let invalid_signature = hex::decode("99bd1f104e132178aea55731be455a5c91b3e15b46f2599e9472d926270d458f4116eea0273fb5dc36238992154afc652aa7c1d91569b596db00146b4e5443fa1b").unwrap();
+
+        let result = verify_signature_eth(pub_key, challenge, &invalid_signature);
+        assert!(matches!(result, Err(AuthError::CryptoError(_))));
     }
 }

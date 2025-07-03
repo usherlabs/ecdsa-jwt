@@ -62,7 +62,54 @@ pub struct AuthRequest {
     /// Base64-encoded ECDSA signature of the challenge
     pub signature: String,
     /// PEM-encoded public key used to verify the signature
-    pub public_key_pem: String,
+    pub public_key: PubKey,
+}
+
+/// Represents a public key in one of two supported formats.
+#[derive(Serialize, Deserialize)]
+pub enum PubKey {
+    /// A PEM-encoded public key string (commonly used for ECDSA or RSA).
+    Pem(String),
+
+    /// A 20-byte Ethereum-style public key hash or address.
+    /// This is not a compressed public key — it is the Keccak256 hash of a public key (last 20 bytes).
+    EthAddress([u8; 20]),
+}
+
+impl ToString for PubKey {
+    fn to_string(&self) -> String {
+        match self {
+            PubKey::Pem(s) => s.clone(),
+            PubKey::EthAddress(bytes) => format!("0x{}", hex::encode(bytes)),
+        }
+    }
+}
+
+impl TryFrom<String> for PubKey {
+    type Error = AuthError;
+    fn try_from(s: String) -> std::result::Result<Self, Self::Error> {
+        match s {
+            // condition for ethereum address as public key
+            s if s.starts_with("0x") && s.len() == 42 => {
+                // remove the 0x and convert to a vector
+                let bytes = hex::decode(&s[2..])
+                    .map_err(|e| AuthError::InvalidSignature(format!("Invalid hex: {}", e)))?;
+                // convert from vec to u8
+                let bytes: [u8; 20] = bytes.try_into().map_err(|_| {
+                    AuthError::InvalidPublicKey("Expected 20-byte address".to_string())
+                })?;
+                // return the instance of the enum
+                Ok(PubKey::EthAddress(bytes))
+            }
+
+            // condition for PEM file as public key
+            s if s.contains("-----BEGIN PUBLIC KEY-----") => Ok(PubKey::Pem(s.to_string())),
+
+            _ => Err(AuthError::InvalidPublicKey(
+                "Unsupported public key format".into(),
+            )),
+        }
+    }
 }
 
 /// Response structure containing authentication results
@@ -197,11 +244,8 @@ impl AuthService {
         auth_request: AuthRequest,
         include_public_key: bool,
     ) -> Result<AuthResponse> {
-        if auth_request.public_key_pem.trim().is_empty() {
-            return Err(AuthError::InvalidPublicKey(
-                "Invalid Public Key".to_string(),
-            ));
-        }
+        let pub_key = auth_request.public_key;
+
         if auth_request.challenge.trim().is_empty() {
             return Err(AuthError::InvalidChallenge);
         }
@@ -216,13 +260,9 @@ impl AuthService {
             .decode(&auth_request.signature)
             .map_err(|e| AuthError::Base64Error(format!("Invalid signature encoding: {e}")))?;
 
-        match verify_signature(
-            &auth_request.public_key_pem,
-            &challenge_bytes,
-            &signature_bytes,
-        ) {
+        match verify_signature(&pub_key.to_string(), &challenge_bytes, &signature_bytes) {
             Ok(()) => self.create_jwt_response(if include_public_key {
-                Some(auth_request.public_key_pem)
+                Some(pub_key.to_string())
             } else {
                 None
             }),
@@ -396,8 +436,10 @@ mod tests {
         let auth_request = AuthRequest {
             challenge: "".to_string(),
             signature: BASE64_STANDARD.encode([0u8; 64]),
-            public_key_pem: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                .to_string(),
+            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
+                .to_string()
+                .try_into()
+                .unwrap(),
         };
 
         let result = auth_service.authenticate(auth_request, true);
@@ -411,8 +453,10 @@ mod tests {
         let auth_request = AuthRequest {
             challenge: BASE64_STANDARD.encode([0u8; 32]),
             signature: "".to_string(),
-            public_key_pem: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                .to_string(),
+            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
+                .to_string()
+                .try_into()
+                .unwrap(),
         };
 
         let result = auth_service.authenticate(auth_request, true);
@@ -421,15 +465,8 @@ mod tests {
 
     #[test]
     fn test_authenticate_with_empty_public_key() {
-        let auth_service = create_test_auth_service();
-
-        let auth_request = AuthRequest {
-            challenge: BASE64_STANDARD.encode([0u8; 32]),
-            signature: BASE64_STANDARD.encode([0u8; 64]),
-            public_key_pem: "".to_string(),
-        };
-
-        let result = auth_service.authenticate(auth_request, true);
+        let empty_pub_key = "".to_string();
+        let result = PubKey::try_from(empty_pub_key);
         assert!(matches!(result, Err(AuthError::InvalidPublicKey(_))));
     }
     #[test]
@@ -439,8 +476,10 @@ mod tests {
         let auth_request = AuthRequest {
             challenge: BASE64_STANDARD.encode([0u8; 16]), // Wrong length
             signature: BASE64_STANDARD.encode([0u8; 64]),
-            public_key_pem: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
-                .to_string(),
+            public_key: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----"
+                .to_string()
+                .try_into()
+                .unwrap(),
         };
 
         let result = auth_service.authenticate(auth_request, true);

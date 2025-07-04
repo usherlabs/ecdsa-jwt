@@ -1,10 +1,9 @@
-use crate::{auth::PubKey, error::AuthError};
+use crate::{auth::PubKey, crypto::ethereum::validate_ecdsa_signature, error::AuthError};
 use base64::prelude::*;
 use k256::{
     ecdsa::{signature::Verifier, Signature, VerifyingKey},
     pkcs8::DecodePublicKey,
 };
-use simple_ecdsa_verifier::validate_ecdsa_signature;
 
 /// Verify an ECDSA signature against a challenge using a public key
 ///
@@ -63,11 +62,7 @@ pub fn verify_signature_eth(
     challenge: &[u8],
     signature_der: &[u8],
 ) -> Result<(), AuthError> {
-    let public_key = public_key.to_string();
-    let signature_hex = hex::encode(signature_der);
-    let message = String::from_utf8(challenge.to_vec()).unwrap();
-
-    let signature_is_valid = validate_ecdsa_signature(&signature_hex, &message, &public_key)
+    let signature_is_valid = validate_ecdsa_signature(&public_key, challenge, signature_der)
         .map_err(|e| AuthError::CryptoError(e.to_string()))?;
 
     if !signature_is_valid {
@@ -84,7 +79,7 @@ pub fn verify_signature_eth(
 /// # Arguments
 /// * `public_key` - Either a PEM-encoded public key or a 0x-prefixed Ethereum address
 /// * `challenge` - Raw challenge bytes (must match what was signed)
-/// * `signature_der` - DER-encoded ECDSA signature
+/// * `signature_der` - ECDSA signature
 ///
 /// # Returns
 /// * `Ok(())` if the signature is valid for the public key
@@ -92,14 +87,14 @@ pub fn verify_signature_eth(
 pub fn verify_signature(
     public_key: &str,
     challenge: &[u8],
-    signature_der: &[u8],
+    signature: &[u8],
 ) -> Result<(), AuthError> {
     let public_key: PubKey = public_key.to_string().try_into()?;
     let pub_key_str = public_key.to_string();
 
     match public_key {
-        PubKey::EthAddress(_) => verify_signature_eth(&pub_key_str, challenge, signature_der),
-        PubKey::Pem(_) => verify_signature_pem(&pub_key_str, challenge, signature_der),
+        PubKey::EthAddress(_) => verify_signature_eth(&pub_key_str, challenge, signature),
+        PubKey::Pem(_) => verify_signature_pem(&pub_key_str, challenge, signature),
     }
 }
 

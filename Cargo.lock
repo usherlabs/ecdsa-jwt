@@ -313,15 +313,16 @@ version = "0.1.1"
 dependencies = [
  "base64",
  "chrono",
+ "easy-hasher",
  "hex",
  "jsonwebtoken",
  "k256",
+ "libsecp256k1",
  "rand",
  "secrecy",
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "simple_ecdsa_verifier",
  "uuid",
 ]
 
@@ -958,17 +959,6 @@ dependencies = [
  "num-traits",
  "thiserror",
  "time",
-]
-
-[[package]]
-name = "simple_ecdsa_verifier"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0232628989908df47e8175afc4ac1c843aa0d76c39fe1c4beaf8ac3b33c4871d"
-dependencies = [
- "easy-hasher",
- "hex",
- "libsecp256k1",
 ]
 
 [[package]]

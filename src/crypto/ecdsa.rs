@@ -20,24 +20,24 @@ use k256::{
 /// ```rust
 /// use ecdsa_jwt::crypto::verify_signature;
 ///
-/// let public_key_pem = "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----";
+/// let public_key = "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----";
 /// let challenge = b"random challenge bytes";
 /// let signature = &[0x30, 0x44, 0x02, 0x20]; // DER-encoded signature
 ///
-/// match verify_signature(public_key_pem, challenge, signature) {
+/// match verify_signature(public_key, challenge, signature) {
 ///     Ok(()) => println!("Signature is valid!"),
 ///     Err(e) => println!("Verification failed: {}", e),
 /// }
 /// ```
 pub fn verify_signature_pem(
-    public_key: &str,
+    public_key_pem: &str,
     challenge: &[u8],
     signature_der: &[u8],
 ) -> Result<(), AuthError> {
     let signature = Signature::from_der(signature_der)
         .map_err(|e| AuthError::CryptoError(format!("Failed to parse signature: {e}")))?;
 
-    let verifying_key = VerifyingKey::from_public_key_pem(public_key)
+    let verifying_key = VerifyingKey::from_public_key_pem(public_key_pem)
         .map_err(|e| AuthError::InvalidPublicKey(format!("Failed to derive verifying key: {e}")))?;
     verifying_key
         .verify(challenge, &signature)
@@ -62,7 +62,7 @@ pub fn verify_signature_eth(
     challenge: &[u8],
     signature_der: &[u8],
 ) -> Result<(), AuthError> {
-    let signature_is_valid = validate_ecdsa_signature(&public_key, challenge, signature_der)
+    let signature_is_valid = validate_ecdsa_signature(public_key, challenge, signature_der)
         .map_err(|e| AuthError::CryptoError(e.to_string()))?;
 
     if !signature_is_valid {

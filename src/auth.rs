@@ -76,11 +76,11 @@ pub enum PubKey {
     EthAddress([u8; 20]),
 }
 
-impl ToString for PubKey {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for PubKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PubKey::Pem(s) => s.clone(),
-            PubKey::EthAddress(bytes) => format!("0x{}", hex::encode(bytes)),
+            PubKey::Pem(s) => write!(f, "{s}"),
+            PubKey::EthAddress(bytes) => write!(f, "0x{}", hex::encode(bytes)),
         }
     }
 }
@@ -93,7 +93,7 @@ impl TryFrom<String> for PubKey {
             s if s.starts_with("0x") && s.len() == 42 => {
                 // remove the 0x and convert to a vector
                 let bytes = hex::decode(&s[2..])
-                    .map_err(|e| AuthError::InvalidSignature(format!("Invalid hex: {}", e)))?;
+                    .map_err(|e| AuthError::InvalidSignature(format!("Invalid hex: {e}")))?;
                 // convert from vec to u8
                 let bytes: [u8; 20] = bytes.try_into().map_err(|_| {
                     AuthError::InvalidPublicKey("Expected 20-byte address".to_string())
@@ -288,15 +288,15 @@ impl AuthService {
     /// secret and expiration time.
     ///
     /// # Arguments
-    /// * `public_key_pem` - Optional PEM-encoded public key used for authentication
+    /// * `public_key` - Optional PEM-encoded public key used for authentication
     ///
     /// # Returns
     /// * `Ok(AuthResponse)` - JWT token created successfully
     /// * `Err(AuthError)` - JWT creation failed
-    fn create_jwt_response(&self, public_key_pem: Option<String>) -> Result<AuthResponse> {
+    fn create_jwt_response(&self, public_key: Option<String>) -> Result<AuthResponse> {
         let session_id = Uuid::new_v4();
 
-        let jwt_token = create_jwt(session_id, public_key_pem, &self.jwt_config)?;
+        let jwt_token = create_jwt(session_id, public_key, &self.jwt_config)?;
 
         let expires_at = chrono::Utc::now().timestamp() + self.jwt_config.ttl;
 

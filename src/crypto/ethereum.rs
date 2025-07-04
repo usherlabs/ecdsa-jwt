@@ -55,7 +55,7 @@ fn recover_address_from_eth_signature(
     // Hash the message using Ethereum's prefixed method
     let message_bytes: [u8; 32] = hash_eth_message(message)
         .try_into()
-        .map_err(|e| format!("{:?}", e))?;
+        .map_err(|e| format!("{e:?}"))?;
     let message_bytes_32 = libsecp256k1::Message::parse(&message_bytes);
 
     // Recover the public key using secp256k1 recovery
@@ -68,7 +68,7 @@ fn recover_address_from_eth_signature(
             .serialize_compressed()
             .to_vec()
             .try_into()
-            .map_err(|e| format!("{:?}", e))?,
+            .map_err(|e| format!("{e:?}"))?,
     )
 }
 

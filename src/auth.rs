@@ -79,7 +79,7 @@ pub enum PubKey {
 impl std::fmt::Display for PubKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PubKey::Pem(s) => write!(f, "{}", s),
+            PubKey::Pem(s) => write!(f, "{s}"),
             PubKey::EthAddress(bytes) => write!(f, "0x{}", hex::encode(bytes)),
         }
     }
@@ -93,7 +93,7 @@ impl TryFrom<String> for PubKey {
             s if s.starts_with("0x") && s.len() == 42 => {
                 // remove the 0x and convert to a vector
                 let bytes = hex::decode(&s[2..])
-                    .map_err(|e| AuthError::InvalidSignature(format!("Invalid hex: {}", e)))?;
+                    .map_err(|e| AuthError::InvalidSignature(format!("Invalid hex: {e}")))?;
                 // convert from vec to u8
                 let bytes: [u8; 20] = bytes.try_into().map_err(|_| {
                     AuthError::InvalidPublicKey("Expected 20-byte address".to_string())

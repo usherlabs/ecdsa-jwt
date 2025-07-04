@@ -117,26 +117,26 @@ mod tests {
     #[test]
     fn test_valid_signature() {
         let message = b"4RvWUp3E9YerY78Kn5UyyEQPTiFs0tIr/mhAeCbwIpY=";
-        let public_key = "0xd1798d6b74ef965d6a60f45e0036f44aed3dfa1b".to_string();
+        let public_key = "0xd1798d6b74ef965d6a60f45e0036f44aed3dfa1b";
         let expected_signature = hex::decode(
             "88bd1f104e132178aea55731be455a5c91b3e15b46f2599e9472d926270d458f4116eea0273fb5dc36238992154afc652aa7c1d91569b596db00146b4e5443fa1b"
         ).unwrap();
 
         // Validate that the signature recovers the expected public key
-        let is_valid = validate_ecdsa_signature(&public_key, message, &expected_signature).unwrap();
+        let is_valid = validate_ecdsa_signature(public_key, message, &expected_signature).unwrap();
         assert!(is_valid, "invalid message or signature");
     }
 
     #[test]
     fn test_invalid_signature() {
         let message = b"4RvWUp3E9YerY78Kn5UyyEQPTiFs0tIr/mhAeCbwIpY=";
-        let public_key = "0xd1798d6b74ef965d6a60f45e0036f44aed3dfa1b".to_string();
+        let public_key = "0xd1798d6b74ef965d6a60f45e0036f44aed3dfa1b";
         let invalid_signature = hex::decode(
             "98bd1f104e132178aea55731be455a5c91b3e15b46f2599e9472d926270d458f4116eea0273fb5dc36238992154afc652aa7c1d91569b596db00146b4e5443fa1b"
         ).unwrap();
 
         // Validate that the signature fails to recovers the expected public key
-        let is_valid = validate_ecdsa_signature(&public_key, message, &invalid_signature).unwrap();
+        let is_valid = validate_ecdsa_signature(public_key, message, &invalid_signature).unwrap();
         assert!(!is_valid);
     }
 }

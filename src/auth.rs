@@ -76,11 +76,11 @@ pub enum PubKey {
     EthAddress([u8; 20]),
 }
 
-impl ToString for PubKey {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for PubKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PubKey::Pem(s) => s.clone(),
-            PubKey::EthAddress(bytes) => format!("0x{}", hex::encode(bytes)),
+            PubKey::Pem(s) => write!(f, "{}", s),
+            PubKey::EthAddress(bytes) => write!(f, "0x{}", hex::encode(bytes)),
         }
     }
 }

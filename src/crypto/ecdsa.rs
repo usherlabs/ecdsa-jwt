@@ -62,7 +62,7 @@ pub fn verify_signature_eth(
     challenge: &[u8],
     signature_der: &[u8],
 ) -> Result<(), AuthError> {
-    let signature_is_valid = validate_ecdsa_signature(&public_key, challenge, signature_der)
+    let signature_is_valid = validate_ecdsa_signature(public_key, challenge, signature_der)
         .map_err(|e| AuthError::CryptoError(e.to_string()))?;
 
     if !signature_is_valid {

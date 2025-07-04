@@ -63,7 +63,13 @@ fn recover_address_from_eth_signature(
         libsecp256k1::recover(&message_bytes_32, &signature_bytes_64, &recovery_id_byte)?;
 
     // Convert the recovered public key to an Ethereum address
-    get_address_from_public_key(public_key.serialize_compressed().to_vec())
+    get_address_from_public_key(
+        public_key
+            .serialize_compressed()
+            .to_vec()
+            .try_into()
+            .map_err(|e| format!("{:?}", e))?,
+    )
 }
 
 /// Hashes a message using Ethereum's signed message prefix scheme.
@@ -88,11 +94,7 @@ fn hash_eth_message<T: AsRef<[u8]>>(message: T) -> Vec<u8> {
 /// # Returns
 /// * `Ok(Vec<u8>)` - The last 20 bytes of the Keccak256 hash of the uncompressed key
 /// * `Err` if decoding fails or key length is incorrect
-fn get_address_from_public_key(public_key: Vec<u8>) -> DynamicResult<Vec<u8>> {
-    if public_key.len() != 33 {
-        return Err("Invalid public key length".into());
-    }
-
+fn get_address_from_public_key(public_key: [u8; 33]) -> DynamicResult<Vec<u8>> {
     // Parse and decompress the SEC1 public key
     let pub_key_arr: [u8; 33] = public_key[..].try_into()?;
     let pub_key = libsecp256k1::PublicKey::parse_compressed(&pub_key_arr)?.serialize();

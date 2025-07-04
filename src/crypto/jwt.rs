@@ -23,7 +23,7 @@ pub struct Claims {
     /// Public key hash (SHA256 of the public key used for authentication)
     pub key_hash: Option<String>,
     /// Full public key PEM (for signature verification)
-    pub public_key_pem: Option<String>,
+    pub public_key: Option<String>,
 }
 
 /// Creates a signed JWT token for an authenticated session
@@ -67,7 +67,7 @@ pub fn create_jwt(
     let now = Utc::now().timestamp();
 
     // Create hash of the public key if provided
-    let (key_hash, public_key_pem_value) = if let Some(ref pk) = public_key_pem {
+    let (key_hash, public_key_value) = if let Some(ref pk) = public_key_pem {
         let hash = create_public_key_hash(pk)?;
         (Some(hash), Some(pk.clone()))
     } else {
@@ -79,7 +79,7 @@ pub fn create_jwt(
         exp: now + config.ttl,
         iat: now,
         key_hash,
-        public_key_pem: public_key_pem_value,
+        public_key: public_key_value,
     };
     let token = encode(
         &Header::default(),
@@ -198,7 +198,7 @@ pub fn verify_signature_from_jwt(
 
     // Use the public key from JWT if available
     let public_key_pem = claims
-        .public_key_pem
+        .public_key
         .ok_or_else(|| AuthError::InvalidPublicKey("Public key not included in JWT".to_string()))?;
 
     // Verify the signature using the public key from JWT

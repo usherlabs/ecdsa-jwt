@@ -23,3 +23,5 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 secrecy = { version = "0.8", features = ["serde"] }
 rand = "0.8"
 sha2 = "0.10"
+libsecp256k1 = "0.7"
+easy-hasher = "2.2.1"

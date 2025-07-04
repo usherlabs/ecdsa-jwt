@@ -33,7 +33,7 @@
 //! let auth_request = AuthRequest {
 //!     challenge: "base64-encoded-challenge".to_string(),
 //!     signature: "base64-encoded-signature".to_string(),
-//!     public_key_pem: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string(),
+//!     public_key: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string(),
 //! };
 //!
 //! match auth_service.authenticate(auth_request, true) { // true = include public key in JWT

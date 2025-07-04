@@ -194,7 +194,7 @@ impl AuthService {
 pub struct AuthRequest {
     pub challenge: String,        // Base64-encoded challenge
     pub signature: String,        // Base64-encoded signature
-    pub public_key_pem: String,   // PEM-encoded public key
+    pub public_key: String,       // Public key
 }
 
 pub struct AuthResponse {
@@ -213,7 +213,7 @@ pub struct Claims {
     pub exp: i64,              // Expiration timestamp
     pub iat: i64,              // Issued at timestamp
     pub key_hash: Option<String>,      // SHA256 hash of public key (optional)
-    pub public_key_pem: Option<String>, // Full public key PEM (optional)
+    pub public_key: Option<String>, // Full public key PEM (optional)
 }
 ```
 
@@ -227,6 +227,8 @@ pub fn decode_challenge(challenge_b64: &str) -> Result<Vec<u8>>;
 // Signature verification
 pub fn verify_signature(public_key_pem: &str, challenge: &[u8], signature: &[u8]) -> Result<()>;
 pub fn verify_signature_b64(public_key_pem: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
+pub fn verify_signature_eth(public_key_pem: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
+pub fn verify_signature_pem(public_key_pem: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
 
 // JWT operations (public key is optional)
 pub fn create_jwt(session_id: Uuid, public_key_pem: Option<String>, config: &JwtConfig) -> Result<String>;

@@ -41,7 +41,7 @@ pub fn verify_signature_pem(
         .map_err(|e| AuthError::InvalidPublicKey(format!("Failed to derive verifying key: {e}")))?;
     verifying_key
         .verify(challenge, &signature)
-        .map_err(|e| AuthError::InvalidSignature(format!("Failed to verfiy: {e}")))
+        .map_err(|e| AuthError::InvalidSignature(format!("Failed to verify: {e}")))
 }
 
 /// Verifies an Ethereum-style ECDSA signature against a 20-byte address.

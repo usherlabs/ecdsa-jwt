@@ -88,7 +88,7 @@ let public_key_pem = format!(
   "exp": 1640995200,
   "iat": 1640991600,
   "key_hash": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678",
-  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----"
+  "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----"
 }
 ```
 
@@ -99,7 +99,7 @@ let public_key_pem = format!(
   "exp": 1640995200,
   "iat": 1640991600,
   "key_hash": null,
-  "public_key_pem": null
+  "public_key": null
 }
 ```
 
@@ -131,7 +131,7 @@ let private_key = SecretKey::from_sec1_pem(&private_key_pem).unwrap();
 let signing_key = SigningKey::from(private_key);
 
 // Load public key from PEM file  
-let public_key_pem = std::fs::read_to_string("public_key.pem").unwrap();
+let public_key = std::fs::read_to_string("public_key.pem").unwrap();
 
 // Sign a challenge
 let challenge = "base64-encoded-challenge-from-server";
@@ -139,7 +139,7 @@ let challenge_bytes = base64::decode(challenge).unwrap();
 let signature = signing_key.sign(&challenge_bytes);
 let signature_b64 = base64::encode(signature.to_bytes());
 
-// Send to server: challenge, signature_b64, and public_key_pem
+// Send to server: challenge, signature_b64, and public_key
 ```
 
 ### Individual Functions
@@ -153,10 +153,10 @@ let challenge = generate_challenge();
 // Verify signature  
 let challenge_bytes = base64::decode(&challenge)?;
 let signature_bytes = base64::decode(&signature)?;
-verify_signature(&public_key_pem, &challenge_bytes, &signature_bytes)?;
+verify_signature(&public_key, &challenge_bytes, &signature_bytes)?;
 
 // Create JWT (with optional public key)
-let token = create_jwt(session_id, Some(public_key_pem), &jwt_config)?;
+let token = create_jwt(session_id, Some(public_key), &jwt_config)?;
 
 // Validate JWT
 let claims = validate_token(&token, &jwt_config)?;
@@ -225,13 +225,13 @@ pub fn generate_challenge() -> String;
 pub fn decode_challenge(challenge_b64: &str) -> Result<Vec<u8>>;
 
 // Signature verification
-pub fn verify_signature(public_key_pem: &str, challenge: &[u8], signature: &[u8]) -> Result<()>;
-pub fn verify_signature_b64(public_key_pem: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
-pub fn verify_signature_eth(public_key_pem: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
-pub fn verify_signature_pem(public_key_pem: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
+pub fn verify_signature(public_key: &str, challenge: &[u8], signature: &[u8]) -> Result<()>;
+pub fn verify_signature_b64(public_key: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
+pub fn verify_signature_eth(public_key: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
+pub fn verify_signature_pem(public_key: &str, challenge_b64: &str, signature_b64: &str) -> Result<()>;
 
 // JWT operations (public key is optional)
-pub fn create_jwt(session_id: Uuid, public_key_pem: Option<String>, config: &JwtConfig) -> Result<String>;
+pub fn create_jwt(session_id: Uuid, public_key: Option<String>, config: &JwtConfig) -> Result<String>;
 pub fn validate_token(token: &str, config: &JwtConfig) -> Result<Claims>;
 pub fn verify_signature_from_jwt(token: &str, config: &JwtConfig, challenge: &[u8], signature: &[u8]) -> Result<()>;
 ```

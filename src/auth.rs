@@ -288,15 +288,15 @@ impl AuthService {
     /// secret and expiration time.
     ///
     /// # Arguments
-    /// * `public_key_pem` - Optional PEM-encoded public key used for authentication
+    /// * `public_key` - Optional PEM-encoded public key used for authentication
     ///
     /// # Returns
     /// * `Ok(AuthResponse)` - JWT token created successfully
     /// * `Err(AuthError)` - JWT creation failed
-    fn create_jwt_response(&self, public_key_pem: Option<String>) -> Result<AuthResponse> {
+    fn create_jwt_response(&self, public_key: Option<String>) -> Result<AuthResponse> {
         let session_id = Uuid::new_v4();
 
-        let jwt_token = create_jwt(session_id, public_key_pem, &self.jwt_config)?;
+        let jwt_token = create_jwt(session_id, public_key, &self.jwt_config)?;
 
         let expires_at = chrono::Utc::now().timestamp() + self.jwt_config.ttl;
 

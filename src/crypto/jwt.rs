@@ -30,7 +30,7 @@ pub struct Claims {
 ///
 /// # Arguments
 /// * `session_id` - Unique session identifier
-/// * `public_key_pem` - Optional PEM-encoded public key used for authentication
+/// * `public_key` - Optional PEM-encoded public key used for authentication
 /// * `config` - JWT configuration with secret and TTL
 ///
 /// # Returns
@@ -60,14 +60,14 @@ pub struct Claims {
 /// ```
 pub fn create_jwt(
     session_id: Uuid,
-    public_key_pem: Option<String>,
+    public_key: Option<String>,
     config: &JwtConfig,
 ) -> Result<String> {
     let jwt_secret = decode_secret(config.secret.expose_secret())?;
     let now = Utc::now().timestamp();
 
     // Create hash of the public key if provided
-    let (key_hash, public_key_value) = if let Some(ref pk) = public_key_pem {
+    let (key_hash, public_key_value) = if let Some(ref pk) = public_key {
         let hash = create_public_key_hash(pk)?;
         (Some(hash), Some(pk.clone()))
     } else {
@@ -142,9 +142,9 @@ fn decode_secret(secret: &str) -> Result<Vec<u8>> {
 }
 
 /// Create a hash of the public key for storage in JWT claims
-fn create_public_key_hash(public_key_pem: &str) -> Result<String> {
+fn create_public_key_hash(public_key: &str) -> Result<String> {
     // Remove PEM headers and whitespace for consistent hashing
-    let clean_key = public_key_pem
+    let clean_key = public_key
         .lines()
         .filter(|line| !line.starts_with("-----"))
         .collect::<Vec<_>>()
@@ -197,12 +197,12 @@ pub fn verify_signature_from_jwt(
     let claims = validate_token(token, config)?;
 
     // Use the public key from JWT if available
-    let public_key_pem = claims
+    let public_key = claims
         .public_key
         .ok_or_else(|| AuthError::InvalidPublicKey("Public key not included in JWT".to_string()))?;
 
     // Verify the signature using the public key from JWT
-    crate::crypto::ecdsa::verify_signature(&public_key_pem, challenge, signature)
+    crate::crypto::ecdsa::verify_signature(&public_key, challenge, signature)
 }
 
 #[cfg(test)]
